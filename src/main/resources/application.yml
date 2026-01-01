@@ -1,0 +1,39 @@
+#spring:
+#  application:
+#    name: home-kitchen
+#
+#  datasource:
+#    url: jdbc:postgresql://localhost:5432/home_kitchen
+#    username: nizamialimamedov
+#    password: postgres
+#    driver-class-name: org.postgresql.Driver
+#
+#  jpa:
+#    hibernate:
+#      ddl-auto: update
+#    show-sql: true
+#    properties:
+#      hibernate:
+#        format_sql: true
+
+spring:
+  application:
+    name: home-kitchen
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/home_kitchen}
+    username: ${DB_USERNAME:nizamialimamedov}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: ${PORT:8080}
+
