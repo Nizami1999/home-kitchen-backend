@@ -12,19 +12,47 @@ public class Category {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
 
-    // No-args constructor required by JPA
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    @Column
+    private String description;
+
+    @Column(name = "dish_count")
+    private Integer dishCount;
+
+    @Column(name = "is_active")
+    private Boolean isActive;
+
+    @Column(name = "sort_order")
+    private Integer sortOrder;
+
+    // Required by JPA
     public Category() {
     }
 
-    // All-args constructor (optional)
-    public Category(Long id, String name) {
+    // Optional all-args constructor
+    public Category(
+            Long id,
+            String name,
+            String imageUrl,
+            String description,
+            Integer dishCount,
+            Boolean isActive,
+            Integer sortOrder
+    ) {
         this.id = id;
         this.name = name;
+        this.imageUrl = imageUrl;
+        this.description = description;
+        this.dishCount = dishCount;
+        this.isActive = isActive;
+        this.sortOrder = sortOrder;
     }
 
-    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -41,7 +69,48 @@ public class Category {
         this.name = name;
     }
 
-    // equals and hashCode (based on id)
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Integer getDishCount() {
+        return dishCount;
+    }
+
+    public void setDishCount(Integer dishCount) {
+        this.dishCount = dishCount;
+    }
+
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean active) {
+        isActive = active;
+    }
+
+    public Integer getSortOrder() {
+        return sortOrder;
+    }
+
+    public void setSortOrder(Integer sortOrder) {
+        this.sortOrder = sortOrder;
+    }
+
+    // equals & hashCode (id-based, correct for JPA)
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -55,12 +124,16 @@ public class Category {
         return Objects.hash(id);
     }
 
-    // toString (optional)
     @Override
     public String toString() {
         return "Category{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
+                ", imageUrl='" + imageUrl + '\'' +
+                ", description='" + description + '\'' +
+                ", dishCount=" + dishCount +
+                ", isActive=" + isActive +
+                ", sortOrder=" + sortOrder +
                 '}';
     }
 }
