@@ -121,8 +121,61 @@ public class DishController {
         dishRepository.deleteById(id);
     }
 
+    // DELETE all dishes
+    @DeleteMapping
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAllDishes() {
+        dishRepository.deleteAll();
+    }
+
+    // GET all dishes for a specific category
+    @GetMapping("/categories/{categoryId}")
+    public List<DishResponseDTO> getDishesByCategory(@PathVariable Long categoryId) {
+        // Validate category exists
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+
+        // Fetch all dishes for this category
+        List<Dish> dishes = dishRepository.findByCategoryId(categoryId);
+
+        // Sort by dish ID or any other field if needed
+        dishes.sort((a, b) -> a.getId().compareTo(b.getId()));
+
+        return dishes.stream()
+                .map(this::mapToResponseDTO)
+                .toList();
+    }
+
+    // POST create multiple dishes at once
+    @PostMapping("/bulk")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<DishResponseDTO> createMultipleDishes(@RequestBody @Valid List<DishRequestDTO> requests) {
+        List<Dish> dishes = requests.stream().map(req -> {
+            Category category = categoryRepository.findById(req.getCategoryId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid category ID"));
+
+            Dish dish = new Dish();
+            dish.setName(req.getName());
+            dish.setDescription(req.getDescription());
+            dish.setPrice(req.getPrice());
+            dish.setImageUrl(req.getImageUrl());
+            dish.setCategory(category);
+
+            return dish;
+        }).toList();
+
+        List<Dish> savedDishes = dishRepository.saveAll(dishes);
+
+        return savedDishes.stream()
+                .map(this::mapToResponseDTO)
+                .toList();
+    }
+
     // Utility method to map Dish entity to response DTO
     private DishResponseDTO mapToResponseDTO(Dish dish) {
+        Category category = dish.getCategory();
+        // Compute dishCount dynamically
+        int dishCount = (int) dishRepository.countByCategoryId(category.getId());
         return new DishResponseDTO(
                 dish.getId(),
                 dish.getName(),
@@ -131,7 +184,12 @@ public class DishController {
                 dish.getImageUrl(),
                 new CategoryResponseDTO(
                         dish.getCategory().getId(),
-                        dish.getCategory().getName()
+                        dish.getCategory().getName(),
+                        dish.getCategory().getImageUrl(),
+                        dish.getCategory().getDescription(),
+                        dishCount,
+                        dish.getCategory().getIsActive(),
+                        dish.getCategory().getSortOrder()
                 )
         );
     }

@@ -7,5 +7,7 @@ import java.util.List;
 
 public interface DishRepository extends JpaRepository<Dish, Long> {
     List<Dish> findByCategoryId(Long categoryId);
+    long countByCategoryId(Long categoryId); // <- counts dishes for a category
+
 
 }

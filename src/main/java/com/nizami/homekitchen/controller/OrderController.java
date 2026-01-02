@@ -105,8 +105,17 @@ public class OrderController {
         orderRepository.deleteById(id);
     }
 
+    // DELETE all orders
+    @DeleteMapping
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAllOrders() {
+        orderRepository.deleteAll();
+    }
+
+
     // Utility method to map Order entity to response DTO
     private OrderResponseDTO mapToResponseDTO(Order order) {
+        int dishCount = (int) dishRepository.countByCategoryId(order.getDish().getCategory().getId());
         return new OrderResponseDTO(
                 order.getId(),
                 order.getCustomerName(),
@@ -120,7 +129,12 @@ public class OrderController {
                         order.getDish().getImageUrl(),
                         new CategoryResponseDTO(
                                 order.getDish().getCategory().getId(),
-                                order.getDish().getCategory().getName()
+                                order.getDish().getCategory().getName(),
+                                order.getDish().getCategory().getImageUrl(),
+                                order.getDish().getCategory().getDescription(),
+                                dishCount,
+                                order.getDish().getCategory().getIsActive(),
+                                order.getDish().getCategory().getSortOrder()
                         )
                 ),
                 order.getOrderDate()

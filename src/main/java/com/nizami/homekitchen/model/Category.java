@@ -21,9 +21,6 @@ public class Category {
     @Column
     private String description;
 
-    @Column(name = "dish_count")
-    private Integer dishCount;
-
     @Column(name = "is_active")
     private Boolean isActive;
 
@@ -40,7 +37,6 @@ public class Category {
             String name,
             String imageUrl,
             String description,
-            Integer dishCount,
             Boolean isActive,
             Integer sortOrder
     ) {
@@ -48,7 +44,6 @@ public class Category {
         this.name = name;
         this.imageUrl = imageUrl;
         this.description = description;
-        this.dishCount = dishCount;
         this.isActive = isActive;
         this.sortOrder = sortOrder;
     }
@@ -83,14 +78,6 @@ public class Category {
 
     public void setDescription(String description) {
         this.description = description;
-    }
-
-    public Integer getDishCount() {
-        return dishCount;
-    }
-
-    public void setDishCount(Integer dishCount) {
-        this.dishCount = dishCount;
     }
 
     public Boolean getIsActive() {
@@ -131,7 +118,6 @@ public class Category {
                 ", name='" + name + '\'' +
                 ", imageUrl='" + imageUrl + '\'' +
                 ", description='" + description + '\'' +
-                ", dishCount=" + dishCount +
                 ", isActive=" + isActive +
                 ", sortOrder=" + sortOrder +
                 '}';
