@@ -6,6 +6,8 @@ import com.nizami.homekitchen.service.DishService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,7 +30,7 @@ public class DishController {
     @GetMapping
     public Page<DishResponseDTO> getDishes(
             @RequestParam(required = false) Long categoryId,
-            Pageable pageable
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return dishService.getDishes(categoryId, pageable);
     }

@@ -95,8 +95,8 @@ public class Dish {
         this.galleryImages = galleryImages;
         this.videoUrl = videoUrl;
         this.averageRating = averageRating;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
+        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
+        this.updatedAt = updatedAt != null ? updatedAt : LocalDateTime.now();
     }
 
     public Long getId() { return id; }

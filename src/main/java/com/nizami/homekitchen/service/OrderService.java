@@ -28,12 +28,11 @@ public class OrderService {
     // =========================
     // GET
     // =========================
-    public List<OrderResponseDTO> getAllOrders(Pageable pageable) {
-        Page<Order> page = orderRepository.findAll(pageable);
-        return page.stream()
-                .map(orderMapper::toResponseDTO)
-                .toList();
+    public Page<OrderResponseDTO> getAllOrders(Pageable pageable) {
+        return orderRepository.findAll(pageable)
+                .map(orderMapper::toResponseDTO);
     }
+
 
     public OrderResponseDTO getOrderById(Long id) {
         Order order = orderRepository.findById(id)

@@ -30,9 +30,22 @@ public class OrderMapper {
                 order.getId(),
                 order.getCustomerName(),
                 order.getCustomerAddress(),
+                order.getCustomerPhone(),
+                order.getCustomerEmail(),
                 order.getQuantity(),
+                order.getUnitPrice(),
+                order.getTotalPrice(),
+                order.getDiscountApplied(),
+                order.getStatus(),
+                order.getPaymentStatus(),
+                order.getPaymentMethod(),
+                order.getDeliveryTime(),
+                order.getSpecialInstructions(),
+                order.getIsActive(),
+                order.getDishSnapshot(),
                 mapDish(order.getDish()),
-                order.getOrderDate()
+                order.getCreatedAt(),
+                order.getUpdatedAt()
         );
     }
 
@@ -90,20 +103,73 @@ public class OrderMapper {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dish ID not found"));
         order.setDish(dish);
 
+        // Set unit price from the dish
+        order.setUnitPrice(dish.getPrice());
+
+        // Calculate total price
+        double total = dish.getPrice() * dto.getQuantity();
+        if (dto.getDiscountApplied() != null) {
+            total -= dto.getDiscountApplied();
+            order.setDiscountApplied(dto.getDiscountApplied());
+        } else {
+            order.setDiscountApplied(0.0);
+        }
+        order.setTotalPrice(total);
+        order.setDishSnapshot(dish.getName() + " - " + dish.getPrice());
+
     }
+
 
     // =========================
     // PARTIAL UPDATE ORDER (PATCH)
     // =========================
     public void patchOrderFromDTO(Order order, OrderRequestDTO dto) {
+        // Update basic fields if provided
         if (dto.getCustomerName() != null) order.setCustomerName(dto.getCustomerName());
         if (dto.getCustomerAddress() != null) order.setCustomerAddress(dto.getCustomerAddress());
         if (dto.getQuantity() != null) order.setQuantity(dto.getQuantity());
+
+        boolean recalcPrice = false;
+
+        // Update dish if provided
         if (dto.getDishId() != null) {
             Dish dish = dishRepository.findById(dto.getDishId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dish ID not found"));
             order.setDish(dish);
+            order.setUnitPrice(dish.getPrice());
+
+            // Update dish snapshot
+            order.setDishSnapshot(dish.getName() + " - " + dish.getPrice());
+
+            recalcPrice = true;
         }
 
+        // Recalculate total price if quantity or dish changed
+        if (dto.getQuantity() != null) recalcPrice = true;
+
+        if (recalcPrice) {
+            int quantity = order.getQuantity() != null ? order.getQuantity() : 1;
+            double unitPrice = order.getUnitPrice() != null ? order.getUnitPrice() : 0.0;
+
+            // Use discount from DTO if provided, otherwise fallback to existing order discount, or 0
+            double discount = dto.getDiscountApplied() != null
+                    ? dto.getDiscountApplied()
+                    : (order.getDiscountApplied() != null ? order.getDiscountApplied() : 0.0);
+
+            order.setDiscountApplied(discount);
+            order.setTotalPrice(unitPrice * quantity - discount);
+        }
+
+        // Optional: update discount if only discount was provided (no quantity/dish change)
+        if (!recalcPrice && dto.getDiscountApplied() != null) {
+            double discount = dto.getDiscountApplied();
+            order.setDiscountApplied(discount);
+
+            double unitPrice = order.getUnitPrice() != null ? order.getUnitPrice() : 0.0;
+            int quantity = order.getQuantity() != null ? order.getQuantity() : 1;
+            order.setTotalPrice(unitPrice * quantity - discount);
+        }
     }
+
+
 }

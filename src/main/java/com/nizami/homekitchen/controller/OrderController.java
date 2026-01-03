@@ -4,7 +4,10 @@ import com.nizami.homekitchen.dto.OrderRequestDTO;
 import com.nizami.homekitchen.dto.OrderResponseDTO;
 import com.nizami.homekitchen.service.OrderService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,9 +27,11 @@ public class OrderController {
     // GET
     // =========================
     @GetMapping
-    public List<OrderResponseDTO> getAllOrders(Pageable pageable) {
+    public Page<OrderResponseDTO> getAllOrders(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return orderService.getAllOrders(pageable);
     }
+
 
     @GetMapping("/{id}")
     public OrderResponseDTO getOrderById(@PathVariable Long id) {
