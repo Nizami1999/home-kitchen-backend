@@ -43,7 +43,20 @@ public class OrderMapper {
                 dish.getDescription(),
                 dish.getPrice(),
                 dish.getImageUrl(),
-                mapCategory(dish.getCategory())
+                mapCategory(dish.getCategory()),
+                dish.getIsActive(),
+                dish.getIsFeatured(),
+                dish.getSortOrder(),
+                dish.getIngredients(),
+                dish.getIsVegetarian(),
+                dish.getCalories(),
+                dish.getCurrency(),
+                dish.getDiscountPrice(),
+                dish.getGalleryImages(),
+                dish.getVideoUrl(),
+                dish.getAverageRating(),
+                dish.getCreatedAt(),
+                dish.getUpdatedAt()
         );
     }
 
