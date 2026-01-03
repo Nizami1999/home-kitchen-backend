@@ -1,18 +1,12 @@
 package com.nizami.homekitchen.controller;
 
-import com.nizami.homekitchen.dto.CategoryResponseDTO;
-import com.nizami.homekitchen.dto.DishResponseDTO;
 import com.nizami.homekitchen.dto.OrderRequestDTO;
 import com.nizami.homekitchen.dto.OrderResponseDTO;
-import com.nizami.homekitchen.model.Dish;
-import com.nizami.homekitchen.model.Order;
-import com.nizami.homekitchen.repository.DishRepository;
-import com.nizami.homekitchen.repository.OrderRepository;
+import com.nizami.homekitchen.service.OrderService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -20,124 +14,63 @@ import java.util.List;
 @RequestMapping("/api/orders")
 public class OrderController {
 
-    @Autowired
-    private OrderRepository orderRepository;
+    private final OrderService orderService;
 
-    @Autowired
-    private DishRepository dishRepository;
-
-    // GET all orders
-    @GetMapping
-    public List<OrderResponseDTO> getAllOrders() {
-        return orderRepository.findAll()
-                .stream()
-                .map(this::mapToResponseDTO)
-                .toList();
+    public OrderController(OrderService orderService) {
+        this.orderService = orderService;
     }
 
-    // GET single order by ID
+    // =========================
+    // GET
+    // =========================
+    @GetMapping
+    public List<OrderResponseDTO> getAllOrders(Pageable pageable) {
+        return orderService.getAllOrders(pageable);
+    }
+
     @GetMapping("/{id}")
     public OrderResponseDTO getOrderById(@PathVariable Long id) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        return mapToResponseDTO(order);
+        return orderService.getOrderById(id);
     }
 
-    // POST create a new order
+    // =========================
+    // CREATE
+    // =========================
     @PostMapping
-    public OrderResponseDTO createOrder(@RequestBody @Valid OrderRequestDTO requestDTO) {
-        Dish dish = dishRepository.findById(requestDTO.getDishId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dish ID not found"));
-
-        Order order = new Order();
-        order.setCustomerName(requestDTO.getCustomerName());
-        order.setCustomerAddress(requestDTO.getCustomerAddress());
-        order.setQuantity(requestDTO.getQuantity());
-        order.setDish(dish);
-
-        Order savedOrder = orderRepository.save(order);
-        return mapToResponseDTO(savedOrder);
+    public OrderResponseDTO createOrder(@RequestBody @Valid OrderRequestDTO dto) {
+        return orderService.createOrder(dto);
     }
 
-    // PUT update entire order
+    @PostMapping("/bulk")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<OrderResponseDTO> createMultipleOrders(@RequestBody @Valid List<OrderRequestDTO> dtos) {
+        return orderService.createMultipleOrders(dtos);
+    }
+
+    // =========================
+    // UPDATE
+    // =========================
     @PutMapping("/{id}")
-    public OrderResponseDTO updateOrder(@PathVariable Long id, @RequestBody @Valid OrderRequestDTO requestDTO) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-
-        Dish dish = dishRepository.findById(requestDTO.getDishId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid dish ID"));
-
-        order.setCustomerName(requestDTO.getCustomerName());
-        order.setCustomerAddress(requestDTO.getCustomerAddress());
-        order.setQuantity(requestDTO.getQuantity());
-        order.setDish(dish);
-
-        Order updatedOrder = orderRepository.save(order);
-        return mapToResponseDTO(updatedOrder);
+    public OrderResponseDTO updateOrder(@PathVariable Long id, @RequestBody @Valid OrderRequestDTO dto) {
+        return orderService.updateOrder(id, dto);
     }
 
-    // PATCH partial update of order
     @PatchMapping("/{id}")
-    public OrderResponseDTO patchOrder(@PathVariable Long id, @RequestBody OrderRequestDTO requestDTO) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-
-        if (requestDTO.getCustomerName() != null) order.setCustomerName(requestDTO.getCustomerName());
-        if (requestDTO.getCustomerAddress() != null) order.setCustomerAddress(requestDTO.getCustomerAddress());
-        if (requestDTO.getQuantity() != null) order.setQuantity(requestDTO.getQuantity());
-        if (requestDTO.getDishId() != null) {
-            Dish dish = dishRepository.findById(requestDTO.getDishId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid dish ID"));
-            order.setDish(dish);
-        }
-
-        Order updatedOrder = orderRepository.save(order);
-        return mapToResponseDTO(updatedOrder);
+    public OrderResponseDTO patchOrder(@PathVariable Long id, @RequestBody OrderRequestDTO dto) {
+        return orderService.patchOrder(id, dto);
     }
 
-    // DELETE order
+    // =========================
+    // DELETE
+    // =========================
     @DeleteMapping("/{id}")
     public void deleteOrder(@PathVariable Long id) {
-        if (!orderRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
-        }
-        orderRepository.deleteById(id);
+        orderService.deleteOrder(id);
     }
 
-    // DELETE all orders
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAllOrders() {
-        orderRepository.deleteAll();
-    }
-
-
-    // Utility method to map Order entity to response DTO
-    private OrderResponseDTO mapToResponseDTO(Order order) {
-        int dishCount = (int) dishRepository.countByCategoryId(order.getDish().getCategory().getId());
-        return new OrderResponseDTO(
-                order.getId(),
-                order.getCustomerName(),
-                order.getCustomerAddress(),
-                order.getQuantity(),
-                new DishResponseDTO(
-                        order.getDish().getId(),
-                        order.getDish().getName(),
-                        order.getDish().getDescription(),
-                        order.getDish().getPrice(),
-                        order.getDish().getImageUrl(),
-                        new CategoryResponseDTO(
-                                order.getDish().getCategory().getId(),
-                                order.getDish().getCategory().getName(),
-                                order.getDish().getCategory().getImageUrl(),
-                                order.getDish().getCategory().getDescription(),
-                                dishCount,
-                                order.getDish().getCategory().getIsActive(),
-                                order.getDish().getCategory().getSortOrder()
-                        )
-                ),
-                order.getOrderDate()
-        );
+        orderService.deleteAllOrders();
     }
 }
