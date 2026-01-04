@@ -91,7 +91,8 @@ public class OrderMapper {
 
         order.setItems(items);
         order.setDishSnapshot(snapshotJoiner.toString());
-        order.recalculateTotalPrice();
+
+//      order.recalculateTotalPrice(); Seems redundant, since entity already does this
     }
 
     // =========================
@@ -123,7 +124,6 @@ public class OrderMapper {
             order.setDishSnapshot(snapshotJoiner.toString());
         }
 
-        // Recalculate total price
-        order.recalculateTotalPrice();
+//        order.recalculateTotalPrice(); Seems redundant, since entity already does this
     }
 }

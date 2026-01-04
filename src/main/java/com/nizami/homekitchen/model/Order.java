@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 @Entity
 @Table(name = "orders")
@@ -87,7 +88,16 @@ public class Order {
 
     public Double getDiscountApplied() { return discountApplied; }
     public void setDiscountApplied(Double discountApplied) {
-        this.discountApplied = discountApplied;
+        double itemsTotal = items.stream()
+                .mapToDouble(OrderItem::getTotalPrice)
+                .sum();
+
+        // Guard: discount cannot be null, negative, or greater than items total
+        double discount = discountApplied != null && discountApplied > 0
+                ? Math.min(discountApplied, itemsTotal)
+                : 0.0;
+
+        this.discountApplied = discount;
         recalculateTotalPrice();
     }
 
@@ -122,30 +132,42 @@ public class Order {
             items.forEach(this::addItem);
         }
         recalculateTotalPrice();
+        updateDishSnapshot();
     }
 
     // Helper to add item and maintain bidirectional relationship
     public void addItem(OrderItem item) {
+        if (item == null) {
+            throw new IllegalArgumentException("OrderItem cannot be null");
+        }
+        if (item.getQuantity() <= 0) {
+            throw new IllegalArgumentException("OrderItem quantity must be greater than 0");
+        }
+
         item.setOrder(this);
         this.items.add(item);
         recalculateTotalPrice();
+        updateDishSnapshot();
     }
+
 
     public void removeItem(OrderItem item) {
         this.items.remove(item);
         item.setOrder(null);
         recalculateTotalPrice();
+        updateDishSnapshot();
     }
 
     // Calculate totalPrice from items and discount
     public void recalculateTotalPrice() {
-        this.totalPrice = items.stream()
+        double itemsTotal = items.stream()
                 .mapToDouble(OrderItem::getTotalPrice)
                 .sum();
-        if (discountApplied != null) {
-            this.totalPrice -= discountApplied;
-        }
+
+        double discount = discountApplied != null ? Math.min(discountApplied, itemsTotal) : 0.0;
+        this.totalPrice = itemsTotal - discount;
     }
+
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
@@ -154,12 +176,16 @@ public class Order {
     protected void onCreate() {
         if (createdAt == null) createdAt = LocalDateTime.now();
         if (updatedAt == null) updatedAt = createdAt;
+        recalculateTotalPrice();
+        updateDishSnapshot();
+        validateOrderNotEmpty();
     }
 
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
         recalculateTotalPrice();
+        updateDishSnapshot();
     }
 
     @Override
@@ -196,5 +222,18 @@ public class Order {
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
                 '}';
+    }
+
+    // Helpers
+    public void updateDishSnapshot() {
+        StringJoiner joiner = new StringJoiner(", ");
+        items.forEach(item -> joiner.add(item.getDish().getName() + " x" + item.getQuantity()));
+        this.dishSnapshot = joiner.toString();
+    }
+
+    public void validateOrderNotEmpty() {
+        if (items.isEmpty()) {
+            throw new IllegalStateException("Order must have at least one item");
+        }
     }
 }
