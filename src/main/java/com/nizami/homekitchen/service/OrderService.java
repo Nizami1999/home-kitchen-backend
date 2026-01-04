@@ -52,11 +52,13 @@ public class OrderService {
 
     @Transactional
     public List<OrderResponseDTO> createMultipleOrders(List<OrderRequestDTO> dtos) {
-        List<Order> orders = dtos.stream().map(dto -> {
-            Order order = new Order();
-            orderMapper.updateOrderFromDTO(order, dto);
-            return order;
-        }).toList();
+        List<Order> orders = dtos.stream()
+                .map(dto -> {
+                    Order order = new Order();
+                    orderMapper.updateOrderFromDTO(order, dto);
+                    return order;
+                })
+                .toList();
 
         return orderRepository.saveAll(orders).stream()
                 .map(orderMapper::toResponseDTO)

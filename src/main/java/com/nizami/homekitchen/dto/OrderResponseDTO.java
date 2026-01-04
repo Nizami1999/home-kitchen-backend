@@ -2,8 +2,8 @@ package com.nizami.homekitchen.dto;
 
 import com.nizami.homekitchen.model.enums.OrderStatus;
 import com.nizami.homekitchen.model.enums.PaymentStatus;
-
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record OrderResponseDTO(
         Long id,
@@ -11,10 +11,8 @@ public record OrderResponseDTO(
         String customerAddress,
         String customerPhone,
         String customerEmail,
-        Integer quantity,
-        Double unitPrice,
-        Double totalPrice,
         Double discountApplied,
+        Double totalPrice,
         OrderStatus status,
         PaymentStatus paymentStatus,
         String paymentMethod,
@@ -22,7 +20,7 @@ public record OrderResponseDTO(
         String specialInstructions,
         Boolean isActive,
         String dishSnapshot,
-        DishResponseDTO dish,
+        List<OrderItemResponseDTO> items,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

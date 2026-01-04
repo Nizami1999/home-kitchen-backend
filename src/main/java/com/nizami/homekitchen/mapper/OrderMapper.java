@@ -1,17 +1,17 @@
 package com.nizami.homekitchen.mapper;
 
-import com.nizami.homekitchen.dto.CategoryResponseDTO;
-import com.nizami.homekitchen.dto.DishResponseDTO;
-import com.nizami.homekitchen.dto.OrderRequestDTO;
-import com.nizami.homekitchen.dto.OrderResponseDTO;
-import com.nizami.homekitchen.model.Category;
+import com.nizami.homekitchen.dto.*;
 import com.nizami.homekitchen.model.Dish;
 import com.nizami.homekitchen.model.Order;
+import com.nizami.homekitchen.model.OrderItem;
 import com.nizami.homekitchen.repository.DishRepository;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
+import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 @Component
 public class OrderMapper {
@@ -23,19 +23,21 @@ public class OrderMapper {
     }
 
     // =========================
-    // MAPPING
+    // ORDER → ORDER RESPONSE DTO
     // =========================
     public OrderResponseDTO toResponseDTO(Order order) {
+        List<OrderItemResponseDTO> items = order.getItems().stream()
+                .map(this::toOrderItemResponseDTO)
+                .collect(Collectors.toList());
+
         return new OrderResponseDTO(
                 order.getId(),
                 order.getCustomerName(),
                 order.getCustomerAddress(),
                 order.getCustomerPhone(),
                 order.getCustomerEmail(),
-                order.getQuantity(),
-                order.getUnitPrice(),
-                order.getTotalPrice(),
                 order.getDiscountApplied(),
+                order.getTotalPrice(),
                 order.getStatus(),
                 order.getPaymentStatus(),
                 order.getPaymentMethod(),
@@ -43,133 +45,85 @@ public class OrderMapper {
                 order.getSpecialInstructions(),
                 order.getIsActive(),
                 order.getDishSnapshot(),
-                mapDish(order.getDish()),
+                items,
                 order.getCreatedAt(),
                 order.getUpdatedAt()
         );
     }
 
-    private DishResponseDTO mapDish(Dish dish) {
-        return new DishResponseDTO(
-                dish.getId(),
-                dish.getName(),
-                dish.getDescription(),
-                dish.getPrice(),
-                dish.getImageUrl(),
-                mapCategory(dish.getCategory()),
-                dish.getIsActive(),
-                dish.getIsFeatured(),
-                dish.getSortOrder(),
-                dish.getIngredients(),
-                dish.getIsVegetarian(),
-                dish.getCalories(),
-                dish.getCurrency(),
-                dish.getDiscountPrice(),
-                dish.getGalleryImages(),
-                dish.getVideoUrl(),
-                dish.getAverageRating(),
-                dish.getCreatedAt(),
-                dish.getUpdatedAt()
+    // =========================
+    // ORDER ITEM → ORDER ITEM RESPONSE DTO
+    // =========================
+    private OrderItemResponseDTO toOrderItemResponseDTO(OrderItem item) {
+        return new OrderItemResponseDTO(
+                item.getId(),
+                item.getDish().getId(),
+                item.getDish().getName(),
+                item.getUnitPrice(),
+                item.getQuantity(),
+                item.getTotalPrice()
         );
-    }
-
-    private CategoryResponseDTO mapCategory(Category category) {
-        int dishCount = getDishCount(category.getId());
-        return new CategoryResponseDTO(
-                category.getId(),
-                category.getName(),
-                category.getImageUrl(),
-                category.getDescription(),
-                dishCount,
-                category.getIsActive(),
-                category.getSortOrder()
-        );
-    }
-
-    @Cacheable(value = "dishCountByCategory", key = "#categoryId")
-    public int getDishCount(Long categoryId) {
-        return (int) dishRepository.countByCategoryId(categoryId);
     }
 
     // =========================
-    // UPDATE ENTIRE ORDER (PUT)
+    // CREATE / UPDATE ORDER FROM DTO (PUT)
     // =========================
     public void updateOrderFromDTO(Order order, OrderRequestDTO dto) {
         order.setCustomerName(dto.getCustomerName());
         order.setCustomerAddress(dto.getCustomerAddress());
-        order.setQuantity(dto.getQuantity());
+        order.setCustomerPhone(dto.getCustomerPhone());
+        order.setCustomerEmail(dto.getCustomerEmail());
+        order.setPaymentMethod(dto.getPaymentMethod());
+        order.setDeliveryTime(dto.getDeliveryTime());
+        order.setSpecialInstructions(dto.getSpecialInstructions());
+        order.setDiscountApplied(dto.getDiscountApplied() != null ? dto.getDiscountApplied() : 0.0);
 
-        Dish dish = dishRepository.findById(dto.getDishId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dish ID not found"));
-        order.setDish(dish);
+        // Clear existing items and add new items from request + Update dish snapshot
+        StringJoiner snapshotJoiner = new StringJoiner(", ");
+        List<OrderItem> items = dto.getItems().stream()
+                .map(itemDTO -> {
+                    Dish dish = dishRepository.findById(itemDTO.getDishId())
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dish ID not found"));
+                    snapshotJoiner.add(dish.getName() + " x" + itemDTO.getQuantity());
+                    return new OrderItem(order, dish, itemDTO.getQuantity(), dish.getPrice());
+                })
+                .collect(Collectors.toList());
 
-        // Set unit price from the dish
-        order.setUnitPrice(dish.getPrice());
-
-        // Calculate total price
-        double total = dish.getPrice() * dto.getQuantity();
-        if (dto.getDiscountApplied() != null) {
-            total -= dto.getDiscountApplied();
-            order.setDiscountApplied(dto.getDiscountApplied());
-        } else {
-            order.setDiscountApplied(0.0);
-        }
-        order.setTotalPrice(total);
-        order.setDishSnapshot(dish.getName() + " - " + dish.getPrice());
-
+        order.setItems(items);
+        order.setDishSnapshot(snapshotJoiner.toString());
+        order.recalculateTotalPrice();
     }
 
-
     // =========================
-    // PARTIAL UPDATE ORDER (PATCH)
+    // PATCH ORDER FROM DTO
     // =========================
     public void patchOrderFromDTO(Order order, OrderRequestDTO dto) {
-        // Update basic fields if provided
         if (dto.getCustomerName() != null) order.setCustomerName(dto.getCustomerName());
         if (dto.getCustomerAddress() != null) order.setCustomerAddress(dto.getCustomerAddress());
-        if (dto.getQuantity() != null) order.setQuantity(dto.getQuantity());
+        if (dto.getCustomerPhone() != null) order.setCustomerPhone(dto.getCustomerPhone());
+        if (dto.getCustomerEmail() != null) order.setCustomerEmail(dto.getCustomerEmail());
+        if (dto.getPaymentMethod() != null) order.setPaymentMethod(dto.getPaymentMethod());
+        if (dto.getDeliveryTime() != null) order.setDeliveryTime(dto.getDeliveryTime());
+        if (dto.getSpecialInstructions() != null) order.setSpecialInstructions(dto.getSpecialInstructions());
+        if (dto.getDiscountApplied() != null) order.setDiscountApplied(dto.getDiscountApplied());
 
-        boolean recalcPrice = false;
+        if (dto.getItems() != null) {
+            StringJoiner snapshotJoiner = new StringJoiner(", ");
 
-        // Update dish if provided
-        if (dto.getDishId() != null) {
-            Dish dish = dishRepository.findById(dto.getDishId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dish ID not found"));
-            order.setDish(dish);
-            order.setUnitPrice(dish.getPrice());
+            List<OrderItem> items = dto.getItems().stream()
+                    .map(itemDTO -> {
+                        Dish dish = dishRepository.findById(itemDTO.getDishId())
+                                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dish ID not found"));
+                        snapshotJoiner.add(dish.getName() + " x" + itemDTO.getQuantity());
+                        return new OrderItem(order, dish, itemDTO.getQuantity(), dish.getPrice());
+                    })
+                    .collect(Collectors.toList());
 
-            // Update dish snapshot
-            order.setDishSnapshot(dish.getName() + " - " + dish.getPrice());
-
-            recalcPrice = true;
+            order.setItems(items);
+            order.setDishSnapshot(snapshotJoiner.toString());
         }
 
-        // Recalculate total price if quantity or dish changed
-        if (dto.getQuantity() != null) recalcPrice = true;
-
-        if (recalcPrice) {
-            int quantity = order.getQuantity() != null ? order.getQuantity() : 1;
-            double unitPrice = order.getUnitPrice() != null ? order.getUnitPrice() : 0.0;
-
-            // Use discount from DTO if provided, otherwise fallback to existing order discount, or 0
-            double discount = dto.getDiscountApplied() != null
-                    ? dto.getDiscountApplied()
-                    : (order.getDiscountApplied() != null ? order.getDiscountApplied() : 0.0);
-
-            order.setDiscountApplied(discount);
-            order.setTotalPrice(unitPrice * quantity - discount);
-        }
-
-        // Optional: update discount if only discount was provided (no quantity/dish change)
-        if (!recalcPrice && dto.getDiscountApplied() != null) {
-            double discount = dto.getDiscountApplied();
-            order.setDiscountApplied(discount);
-
-            double unitPrice = order.getUnitPrice() != null ? order.getUnitPrice() : 0.0;
-            int quantity = order.getQuantity() != null ? order.getQuantity() : 1;
-            order.setTotalPrice(unitPrice * quantity - discount);
-        }
+        // Recalculate total price
+        order.recalculateTotalPrice();
     }
-
-
 }

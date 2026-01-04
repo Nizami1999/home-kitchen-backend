@@ -4,6 +4,8 @@ import com.nizami.homekitchen.model.enums.OrderStatus;
 import com.nizami.homekitchen.model.enums.PaymentStatus;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @Entity
@@ -27,17 +29,11 @@ public class Order {
     @Column(name = "customer_email")
     private String customerEmail;
 
-    @Column(name = "quantity", nullable = false)
-    private Integer quantity;
-
-    @Column(name = "unit_price", nullable = false)
-    private Double unitPrice;
+    @Column(name = "discount_applied")
+    private Double discountApplied = 0.0;
 
     @Column(name = "total_price", nullable = false)
-    private Double totalPrice;
-
-    @Column(name = "discount_applied")
-    private Double discountApplied;
+    private Double totalPrice = 0.0;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -62,9 +58,8 @@ public class Order {
     @Column(name = "dish_snapshot", columnDefinition = "TEXT")
     private String dishSnapshot;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "dish_id", nullable = false)
-    private Dish dish;
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItem> items = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -74,36 +69,6 @@ public class Order {
 
     // No-args constructor
     public Order() { }
-
-    // All-args constructor with defaults for optional fields
-    public Order(Long id, String customerName, String customerAddress,
-                 String customerPhone, String customerEmail,
-                 Integer quantity, Double unitPrice, Double totalPrice,
-                 Double discountApplied, OrderStatus status, PaymentStatus paymentStatus,
-                 String paymentMethod, LocalDateTime deliveryTime,
-                 String specialInstructions, Boolean isActive, String dishSnapshot,
-                 Dish dish, LocalDateTime createdAt, LocalDateTime updatedAt) {
-
-        this.id = id;
-        this.customerName = customerName;
-        this.customerAddress = customerAddress;
-        this.customerPhone = customerPhone;
-        this.customerEmail = customerEmail;
-        this.quantity = quantity;
-        this.unitPrice = unitPrice;
-        this.totalPrice = totalPrice;
-        this.discountApplied = discountApplied;
-        this.status = status;
-        this.paymentStatus = paymentStatus;
-        this.paymentMethod = paymentMethod;
-        this.deliveryTime = deliveryTime;
-        this.specialInstructions = specialInstructions;
-        this.isActive = isActive;
-        this.dishSnapshot = dishSnapshot;
-        this.dish = dish;
-        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
-        this.updatedAt = updatedAt != null ? updatedAt : LocalDateTime.now();
-    }
 
     // Getters and setters
     public Long getId() { return id; }
@@ -120,17 +85,13 @@ public class Order {
     public String getCustomerEmail() { return customerEmail; }
     public void setCustomerEmail(String customerEmail) { this.customerEmail = customerEmail; }
 
-    public Integer getQuantity() { return quantity; }
-    public void setQuantity(Integer quantity) { this.quantity = quantity; }
-
-    public Double getUnitPrice() { return unitPrice; }
-    public void setUnitPrice(Double unitPrice) { this.unitPrice = unitPrice; }
+    public Double getDiscountApplied() { return discountApplied; }
+    public void setDiscountApplied(Double discountApplied) {
+        this.discountApplied = discountApplied;
+        recalculateTotalPrice();
+    }
 
     public Double getTotalPrice() { return totalPrice; }
-    public void setTotalPrice(Double totalPrice) { this.totalPrice = totalPrice; }
-
-    public Double getDiscountApplied() { return discountApplied; }
-    public void setDiscountApplied(Double discountApplied) { this.discountApplied = discountApplied; }
 
     public OrderStatus getStatus() { return status; }
     public void setStatus(OrderStatus status) { this.status = status; }
@@ -153,8 +114,38 @@ public class Order {
     public String getDishSnapshot() { return dishSnapshot; }
     public void setDishSnapshot(String dishSnapshot) { this.dishSnapshot = dishSnapshot; }
 
-    public Dish getDish() { return dish; }
-    public void setDish(Dish dish) { this.dish = dish; }
+    public List<OrderItem> getItems() { return items; }
+
+    public void setItems(List<OrderItem> items) {
+        this.items.clear();
+        if (items != null) {
+            items.forEach(this::addItem);
+        }
+        recalculateTotalPrice();
+    }
+
+    // Helper to add item and maintain bidirectional relationship
+    public void addItem(OrderItem item) {
+        item.setOrder(this);
+        this.items.add(item);
+        recalculateTotalPrice();
+    }
+
+    public void removeItem(OrderItem item) {
+        this.items.remove(item);
+        item.setOrder(null);
+        recalculateTotalPrice();
+    }
+
+    // Calculate totalPrice from items and discount
+    public void recalculateTotalPrice() {
+        this.totalPrice = items.stream()
+                .mapToDouble(OrderItem::getTotalPrice)
+                .sum();
+        if (discountApplied != null) {
+            this.totalPrice -= discountApplied;
+        }
+    }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
@@ -168,6 +159,7 @@ public class Order {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+        recalculateTotalPrice();
     }
 
     @Override
@@ -191,16 +183,15 @@ public class Order {
                 ", customerAddress='" + customerAddress + '\'' +
                 ", customerPhone='" + customerPhone + '\'' +
                 ", customerEmail='" + customerEmail + '\'' +
-                ", quantity=" + quantity +
-                ", unitPrice=" + unitPrice +
-                ", totalPrice=" + totalPrice +
                 ", discountApplied=" + discountApplied +
+                ", totalPrice=" + totalPrice +
                 ", status=" + status +
                 ", paymentStatus=" + paymentStatus +
                 ", paymentMethod='" + paymentMethod + '\'' +
                 ", deliveryTime=" + deliveryTime +
                 ", specialInstructions='" + specialInstructions + '\'' +
                 ", isActive=" + isActive +
+                ", items=" + items +
                 ", dishSnapshot='" + dishSnapshot + '\'' +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
